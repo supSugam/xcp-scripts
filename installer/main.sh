@@ -80,64 +80,57 @@ ssh $SSH_OPTS $HOST_USERNAME@$HOST_IP "xe vm-install template=Other\ install\ me
 VM_UUID=$(ssh $SSH_OPTS $HOST_USERNAME@$HOST_IP "xe vm-list name-label=$VM_NAME --minimal")
 
 # Set the VM memory
-ssh $SSH_OPTS $HOST_USERNAME@$HOST_IP "xe vm-memory-limits-set dynamic-min=$VM_MEMORY dynamic-max=$VM_MEMORY static-min=$VM_MEMORY static-max=$VM_MEMORY uuid=$VM_UUID"
+ssh $SSH_OPTS $HOST_USERNAME@$HOST_IP "xe vm-memory-limits-set dynamic-min='$VM_MEMORY' dynamic-max='$VM_MEMORY' static-min='$VM_MEMORY' static-max='$VM_MEMORY' uuid=$VM_UUID"
 
 # Set the number of VCPUs
 ssh $SSH_OPTS $HOST_USERNAME@$HOST_IP "xe vm-param-set VCPUs-max=$VM_VCPUS VCPUs-at-startup=$VM_VCPUS uuid=$VM_UUID"
 
 # Set the VM disk size
 LOCAL_STORAGE_SR_UUID=$(ssh $SSH_OPTS $HOST_USERNAME@$HOST_IP "xe sr-list type=lvm --minimal")
-ssh $SSH_OPTS $HOST_USERNAME@$HOST_IP "xe vm-disk-add disk-size=$VM_DISK_SIZE device=0 sr-uuid=$LOCAL_STORAGE_SR_UUID vm=$VM_UUID"
+# ssh $SSH_OPTS $HOST_USERNAME@$HOST_IP "xe vm-disk-add disk-size=$VM_DISK_SIZE device=0 sr-uuid=$LOCAL_STORAGE_SR_UUID vm=$VM_UUID"
 
 # Set the VM network
 NETWORK_UUID=$(ssh $SSH_OPTS $HOST_USERNAME@$HOST_IP "xe network-list bridge=xenbr0 --minimal")
 ssh $SSH_OPTS $HOST_USERNAME@$HOST_IP "xe vif-create vm-uuid=$VM_UUID network-uuid=$NETWORK_UUID device=0"
 
+# Ensure SR is scanned
+ssh $SSH_OPTS $HOST_USERNAME@$HOST_IP "xe sr-scan uuid=$ISO_SR_UUID"
 
-# Create first CD drive for Ubuntu ISO
-echo "Creating CD drive for Ubuntu ISO..."
-ssh $SSH_OPTS $HOST_USERNAME@$HOST_IP "xe vm-cd-add vm=$VM_UUID device=1 cd-name=$ISO_FILENAME"
+# Create & attach VM disk
+echo "Disk, $VM_DISK_SIZE, $VM_MEMORY"
+DISK_VDI_UUID=$(ssh $SSH_OPTS $HOST_USERNAME@$HOST_IP "xe vdi-create name-label='$VM_NAME-Disk' sr-uuid=$LOCAL_STORAGE_SR_UUID virtual-size='$VM_DISK_SIZE' type=user")
+ssh $SSH_OPTS $HOST_USERNAME@$HOST_IP "xe vbd-create vm-uuid=$VM_UUID vdi-uuid=$DISK_VDI_UUID device=0 bootable=true mode=RW type=Disk"
 
-# Create second CD drive for seed.iso
-echo "Creating CD drive for seed.iso..."
-ssh $SSH_OPTS $HOST_USERNAME@$HOST_IP "xe vm-cd-add vm=$VM_UUID device=2 cd-name='seed.iso'"
-
-# Get ISOs UUIDs
-echo "Getting ISO UUIDs..."
-UBUNTU_ISO_UUID=$(ssh $SSH_OPTS $HOST_USERNAME@$HOST_IP "xe vdi-list name-label='${ISO_FILENAME}' --minimal")
-if [[ -z "$UBUNTU_ISO_UUID" ]]; then
-    echo "Error: Ubuntu ISO not found in SR!"
-    exit 1
-fi
-
+# Get ISO UUIDs
+UBUNTU_ISO_UUID=$(ssh $SSH_OPTS $HOST_USERNAME@$HOST_IP "xe vdi-list name-label='$ISO_FILENAME' --minimal")
 SEED_ISO_UUID=$(ssh $SSH_OPTS $HOST_USERNAME@$HOST_IP "xe vdi-list name-label='seed.iso' --minimal")
-if [[ -z "$SEED_ISO_UUID" ]]; then
-    echo "Error: Seed ISO not found in SR!"
-    exit 1
-fi
 
-# Get VBDs UUIDs
-UBUNTU_VBD=$(ssh $SSH_OPTS $HOST_USERNAME@$HOST_IP "xe vbd-list vm-uuid=$VM_UUID device=1 --minimal")
-AUTOINSTALL_VBD=$(ssh $SSH_OPTS $HOST_USERNAME@$HOST_IP "xe vbd-list vm-uuid=$VM_UUID device=2 --minimal")
+# Attach ISO as CD manually
+ssh $SSH_OPTS $HOST_USERNAME@$HOST_IP "xe vbd-create vm-uuid=$VM_UUID vdi-uuid=$UBUNTU_ISO_UUID device=1 type=CD mode=RO bootable=true"
+ssh $SSH_OPTS $HOST_USERNAME@$HOST_IP "xe vbd-create vm-uuid=$VM_UUID vdi-uuid=$SEED_ISO_UUID device=2 type=CD mode=RO bootable=false"
 
-# Attach ISOs to CD drives
-echo "Attaching ISOs to CD drives..."
-echo $UBUNTU_VBD
-echo $UBUNTU_ISO_UUID
-exit 0
-ssh $SSH_OPTS $HOST_USERNAME@$HOST_IP "xe vbd-param-set uuid=$UBUNTU_VBD vdi-uuid=$UBUNTU_ISO_UUID"
-ssh $SSH_OPTS $HOST_USERNAME@$HOST_IP "xe vbd-param-set uuid=$AUTOINSTALL_VBD vdi-uuid=$SEED_ISO_UUID"
-
-# Set boot order (HDD, CD)
-echo "Setting boot order..."
-ssh $SSH_OPTS $HOST_USERNAME@$HOST_IP "xe vm-param-set HVM-boot-policy='BIOS order' uuid=$VM_UUID"
-ssh $SSH_OPTS $HOST_USERNAME@$HOST_IP "xe vm-param-set order=dc uuid=$VM_UUID"
+# Set boot order and use text console
+ssh $SSH_OPTS $HOST_USERNAME@$HOST_IP "xe vm-param-set uuid=$VM_UUID HVM-boot-policy='BIOS order' PV-args='console=hvc0, autoinstall'"
+ssh $SSH_OPTS $HOST_USERNAME@$HOST_IP "xe vm-param-set uuid=$VM_UUID HVM-boot-params:order=cd"
 
 # Start the VM
-echo "Starting VM..."
 ssh $SSH_OPTS $HOST_USERNAME@$HOST_IP "xe vm-start uuid=$VM_UUID"
 
-echo "VM installation started. You can monitor the console using:"
-echo "xe console uuid=$VM_UUID"
+# Attach to console and monitor
+echo "Monitoring installation..."
+ssh -t $SSH_OPTS $HOST_USERNAME@$HOST_IP "xe console uuid=$VM_UUID" &
 
-
+# Wait for VM to finish installation
+while true; do
+    VM_POWER_STATE=$(ssh $SSH_OPTS $HOST_USERNAME@$HOST_IP "xe vm-list uuid=$VM_UUID params=power-state --minimal")
+    
+    if [[ "$VM_POWER_STATE" == "halted" ]]; then
+        echo "Installation completed successfully!"
+        exit 0
+    elif [[ "$VM_POWER_STATE" == "running" ]]; then
+        sleep 10  # Keep checking every 10 seconds
+    else
+        echo "Error: Unexpected VM state - $VM_POWER_STATE"
+        exit 1
+    fi
+done

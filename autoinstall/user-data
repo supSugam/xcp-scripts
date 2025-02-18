@@ -2,9 +2,10 @@
 autoinstall:
   version: 1
   identity:
-    realname: 'Root User'
-    hostname: 'ubuntu'
-    username: 'root'
+    realname: ubuntu
+    hostname: ubuntu
+    username: ubuntu
+    password: '$6$cJ5vVXhHNwGD5OmC$xR0dC7qtMdnshN7UkywFMOeCHX9ZaIViVEGgHrpB3ZYXo99eiUzPT7pTahVHtu7VlkMqKotYsvc6cSv3iZg561' # ubuntu
   ssh:
     install-server: true
     authorized-keys:
@@ -34,10 +35,10 @@ autoinstall:
     - python3-pip
   late-commands:
     - echo "Setting up root user..."
-    - mkdir -p /root/.ssh
-    - echo "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIGGKEX+09+ySyju3eMvZmDe8fZqkJB76x+DSYqZMh5N8 ctrlcat@LitterBox" > /root/.ssh/authorized_keys
-    - chmod 600 /root/.ssh/authorized_keys
-    - chown -R root:root /root/.ssh
+    - mkdir -p /ubuntu/.ssh
+    - echo "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIGGKEX+09+ySyju3eMvZmDe8fZqkJB76x+DSYqZMh5N8 ctrlcat@LitterBox" > /ubuntu/.ssh/authorized_keys
+    - chmod 600 /ubuntu/.ssh/authorized_keys
+    - chown -R root:root /ubuntu/.ssh
     - sed -i 's/^#\?PermitRootLogin.*/PermitRootLogin prohibit-password/' /etc/ssh/sshd_config
     - sed -i 's/^#\?PasswordAuthentication.*/PasswordAuthentication no/' /etc/ssh/sshd_config
     - systemctl restart ssh

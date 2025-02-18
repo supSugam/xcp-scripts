@@ -35,3 +35,8 @@ Error: CD autoinstall not found!
 Getting ISO UUIDs...
 Error: Ubuntu ISO not found in SR!
 ctrlcat@LitterBox:~/Repositories/Work/xcp-scripts$ 
+
+Confirmation is required to continue
+
+Add 'autoinstall' to your kernel command line to avoid this 
+Continue with installation? [y/N] y
