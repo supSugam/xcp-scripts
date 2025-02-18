@@ -4,6 +4,7 @@ source load_config.sh
 echo "Script executed from: ${PWD}"
 echo "------------------------------"
 
+
 # Copy all keys from ssh-keys file to the remote server using copy_ssh_keys.sh
 source copy_ssh_keys.sh
 
@@ -31,18 +32,15 @@ else
 fi
 
 
-# Rescan
-ssh $SSH_OPTS $HOST_USERNAME@$HOST_IP "xe sr-scan uuid=$ISO_SR_UUID"
-
 # Check if ISO file exists
 if [[ ! -f "$ISO_FILEPATH" ]]; then
     echo "Error: File '$ISO_FILEPATH' not found!"
     exit 1
 fi
 
-# Check if ISO file is already uploaded
-ISO_UUID=$(ssh $SSH_OPTS $HOST_USERNAME@$HOST_IP "xe vdi-list name-label=$ISO_NAME --minimal")
-if [[ -z "$ISO_UUID" ]]; then
+# Check if ISO file is already uploaded at ISO_SR_LOCATION
+UBUNTU_ISO_CHECK=$(ssh $SSH_OPTS $HOST_USERNAME@$HOST_IP "ls $ISO_SR_LOCATION | grep $ISO_FILENAME")
+if [[ -z "$UBUNTU_ISO_CHECK" ]]; then
     echo "Copying $ISO_FILEPATH to $HOST_IP:$ISO_SR_LOCATION..."
     rsync -r -v --progress -e ssh $ISO_FILEPATH $HOST_USERNAME@$HOST_IP:$ISO_SR_LOCATION
     echo "ISO file copied!"
@@ -51,10 +49,32 @@ else
 fi
 
 
+# Check if both user-data and meta-data files exist in AUTOINSTALL_DIR
+if [[ ! -f "$AUTOINSTALL_DIR/user-data" || ! -f "$AUTOINSTALL_DIR/meta-data" ]]; then
+    echo "Error: user-data or meta-data file not found in $AUTOINSTALL_DIR!"
+    exit 1
+fi
+
+# Check if seed.iso file exists at ISO_SR_LOCATION
+SEED_ISO_CHECK=$(ssh $SSH_OPTS $HOST_USERNAME@$HOST_IP "ls $ISO_SR_LOCATION | grep 'seed.iso'")
+if [[ -z "$SEED_ISO_CHECK" ]]; then
+    echo "Creating seed.iso file..."
+    # Delete seed.iso file if it already exists
+    if [[ -f "seed.iso" ]]; then
+        rm seed.iso
+    fi
+    # Create seed.iso file using cloud-localds
+    cloud-localds seed.iso $AUTOINSTALL_DIR/user-data $AUTOINSTALL_DIR/meta-data
+    rsync -r -v --progress -e ssh seed.iso $HOST_USERNAME@$HOST_IP:$ISO_SR_LOCATION
+else
+    echo "seed.iso file already exists!"
+fi
+
+# Rescan
+ssh $SSH_OPTS $HOST_USERNAME@$HOST_IP "xe sr-scan uuid=$ISO_SR_UUID"
 
 # Unattended VM Configuration
-
-ssh $SSH_OPTS $HOST_USERNAME@$HOST_IP "xe vm-install template=Other\ install\ media new-name-label=$VM_NAME sr-uuid=$ISO_SR_UUID"
+ssh $SSH_OPTS $HOST_USERNAME@$HOST_IP "xe vm-install template=Other\ install\ media new-name-label=$VM_NAME"
 
 # Get the UUID of the VM
 VM_UUID=$(ssh $SSH_OPTS $HOST_USERNAME@$HOST_IP "xe vm-list name-label=$VM_NAME --minimal")
@@ -66,34 +86,21 @@ ssh $SSH_OPTS $HOST_USERNAME@$HOST_IP "xe vm-memory-limits-set dynamic-min=$VM_M
 ssh $SSH_OPTS $HOST_USERNAME@$HOST_IP "xe vm-param-set VCPUs-max=$VM_VCPUS VCPUs-at-startup=$VM_VCPUS uuid=$VM_UUID"
 
 # Set the VM disk size
-ssh $SSH_OPTS $HOST_USERNAME@$HOST_IP "xe vm-disk-add disk-size=$VM_DISK_SIZE device=0 sr-uuid=$ISO_SR_UUID vm-uuid=$VM_UUID"
+LOCAL_STORAGE_SR_UUID=$(ssh $SSH_OPTS $HOST_USERNAME@$HOST_IP "xe sr-list type=lvm --minimal")
+ssh $SSH_OPTS $HOST_USERNAME@$HOST_IP "xe vm-disk-add disk-size=$VM_DISK_SIZE device=0 sr-uuid=$LOCAL_STORAGE_SR_UUID vm=$VM_UUID"
 
 # Set the VM network
 NETWORK_UUID=$(ssh $SSH_OPTS $HOST_USERNAME@$HOST_IP "xe network-list bridge=xenbr0 --minimal")
 ssh $SSH_OPTS $HOST_USERNAME@$HOST_IP "xe vif-create vm-uuid=$VM_UUID network-uuid=$NETWORK_UUID device=0"
 
 
-# Check if both user-data and meta-data files exist in AUTOINSTALL_DIR
-if [[ ! -f "$AUTOINSTALL_DIR/user-data" || ! -f "$AUTOINSTALL_DIR/meta-data" ]]; then
-    echo "Error: user-data or meta-data file not found in $AUTOINSTALL_DIR!"
-    exit 1
-fi
-
-# Create seed.iso file using cloud-localds
-cloud-localds seed.iso $AUTOINSTALL_DIR/user-data $AUTOINSTALL_DIR/meta-data
-
-# Copy seed.iso file to the ISO storage repository using ssh
-rsync -r -v --progress -e ssh seed.iso $HOST_USERNAME@$HOST_IP:$ISO_SR_LOCATION
-
 # Create first CD drive for Ubuntu ISO
 echo "Creating CD drive for Ubuntu ISO..."
-ssh $SSH_OPTS $HOST_USERNAME@$HOST_IP "xe vm-cd-add uuid=$VM_UUID cd-name=ubuntu device=0"
-UBUNTU_VBD=$(ssh $SSH_OPTS $HOST_USERNAME@$HOST_IP "xe vbd-list vm-uuid=$VM_UUID type=CD device=0 --minimal")
+ssh $SSH_OPTS $HOST_USERNAME@$HOST_IP "xe vm-cd-add vm=$VM_UUID device=1 cd-name=$ISO_FILENAME"
 
-# Create second CD drive for autoinstall ISO
-echo "Creating CD drive for autoinstall ISO..."
-ssh $SSH_OPTS $HOST_USERNAME@$HOST_IP "xe vm-cd-add uuid=$VM_UUID cd-name=autoinstall device=1"
-AUTOINSTALL_VBD=$(ssh $SSH_OPTS $HOST_USERNAME@$HOST_IP "xe vbd-list vm-uuid=$VM_UUID type=CD device=1 --minimal")
+# Create second CD drive for seed.iso
+echo "Creating CD drive for seed.iso..."
+ssh $SSH_OPTS $HOST_USERNAME@$HOST_IP "xe vm-cd-add vm=$VM_UUID device=2 cd-name='seed.iso'"
 
 # Get ISOs UUIDs
 echo "Getting ISO UUIDs..."
@@ -109,8 +116,15 @@ if [[ -z "$SEED_ISO_UUID" ]]; then
     exit 1
 fi
 
+# Get VBDs UUIDs
+UBUNTU_VBD=$(ssh $SSH_OPTS $HOST_USERNAME@$HOST_IP "xe vbd-list vm-uuid=$VM_UUID device=1 --minimal")
+AUTOINSTALL_VBD=$(ssh $SSH_OPTS $HOST_USERNAME@$HOST_IP "xe vbd-list vm-uuid=$VM_UUID device=2 --minimal")
+
 # Attach ISOs to CD drives
 echo "Attaching ISOs to CD drives..."
+echo $UBUNTU_VBD
+echo $UBUNTU_ISO_UUID
+exit 0
 ssh $SSH_OPTS $HOST_USERNAME@$HOST_IP "xe vbd-param-set uuid=$UBUNTU_VBD vdi-uuid=$UBUNTU_ISO_UUID"
 ssh $SSH_OPTS $HOST_USERNAME@$HOST_IP "xe vbd-param-set uuid=$AUTOINSTALL_VBD vdi-uuid=$SEED_ISO_UUID"
 

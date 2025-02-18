@@ -4,6 +4,7 @@ source load_config.sh
 
 #!/bin/bash
 
+
 if [[ ! -f "$SSH_KEYS_FILEPATH" ]]; then
     echo "Error: File '$SSH_KEYS_FILEPATH' not found!"
     exit 1

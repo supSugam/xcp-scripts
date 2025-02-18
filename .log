@@ -1,0 +1,37 @@
+ctrlcat@LitterBox:~/Repositories/Work/xcp-scripts$ ./installer/main.sh 
+Script executed from: /home/ctrlcat/Repositories/Work/xcp-scripts
+------------------------------
+Checking if key is already copied to 192.168.1.104...
+Key already exists on 192.168.1.104, skipping...
+ISO storage repository already exists!
+Copying /home/ctrlcat/Repositories/Work/xcp-scripts/images/ubuntu-24.04.1-live-server-amd64.iso to 192.168.1.104:/media/...
+sending incremental file list
+ubuntu-24.04.1-live-server-amd64.iso
+  2,773,874,688 100% 1020.27kB/s    0:44:15 (xfr#1, to-chk=0/1)
+
+sent 2,774,552,014 bytes  received 35 bytes  1,044,045.93 bytes/sec
+total size is 2,773,874,688  speedup is 1.00
+ISO file copied!
+You attempted an operation that was not allowed.
+reason: Cannot copy a VM's disks to an ISO SR
+Error: No matching VMs found
+The uuid you supplied was invalid.
+type: VM
+uuid: 
+Error: Unknown field 'vm-uuid'
+The uuid you supplied was invalid.
+type: VM
+uuid: 
+sending incremental file list
+seed.iso
+        372,736 100%  162.11MB/s    0:00:00 (xfr#1, to-chk=0/1)
+
+sent 372,912 bytes  received 35 bytes  248,631.33 bytes/sec
+total size is 372,736  speedup is 1.00
+Creating CD drive for Ubuntu ISO...
+Error: CD ubuntu not found!
+Creating CD drive for autoinstall ISO...
+Error: CD autoinstall not found!
+Getting ISO UUIDs...
+Error: Ubuntu ISO not found in SR!
+ctrlcat@LitterBox:~/Repositories/Work/xcp-scripts$ 
