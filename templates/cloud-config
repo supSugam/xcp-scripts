@@ -1,0 +1,20 @@
+#cloud-config
+hostname: {name}%
+users:
+  - name: ctrlcat
+    groups: sudo
+    sudo: ALL=(ALL) NOPASSWD:ALL
+    lock_passwd: false
+    ssh_authorized_keys:
+      - ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIGGKEX+09+ySyju3eMvZmDe8fZqkJB76x+DSYqZMh5N8 ctrlcat@LitterBox
+    shell: /bin/bash
+package_update: true
+package_upgrade: true
+packages:
+  - git
+  - curl
+locale: en_US.UTF-8
+power_state:
+  mode: reboot
+  message: Rebooting after initial setup
+  timeout: 30

@@ -1,3 +1,7 @@
 config.env
 *.log
 *.iso
+
+__pycache__/
+.trash/
+.venv
