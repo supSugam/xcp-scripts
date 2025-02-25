@@ -1,7 +1,6 @@
 import XenAPI
 from dotenv import load_dotenv
 import os
-import random
 
 load_dotenv("config.env")
 
@@ -38,17 +37,14 @@ def main():
         print("Successfully connected to XOA")
 
         template_ref = get_template_ref(session, os.getenv("TEMPLATE_NAME"))
-        # network_ref = get_network_ref(session, os.getenv("NETWORK_NAME"))
         if template_ref is None:
             raise Exception("Template not found")
-        # if network_ref is None:
-        #     raise Exception("Network not found")
 
         vm = session.xenapi.VM.clone(template_ref, os.getenv("VM_NAME"))
         session.xenapi.VM.provision(vm)
         session.xenapi.VM.set_is_a_template(vm, False)
-        # session.xenapi.VM.set_name_label(vm, os.getenv("VM_NAME"))
-        session.xenapi.VM.set_name_label(vm, "Ubuntu Test")
+        session.xenapi.VM.set_name_label(vm, os.getenv("VM_NAME"))
+        # session.xenapi.VM.set_name_label(vm, "Ubuntu Test")
         session.xenapi.VM.set_name_description(vm, os.getenv("VM_DESCRIPTION"))
         session.xenapi.VM.set_other_config(
             vm, {"base_template_name": os.getenv("TEMPLATE_NAME")}
