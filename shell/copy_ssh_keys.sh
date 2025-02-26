@@ -2,12 +2,33 @@
 
 source load_config.sh
 
-#!/bin/bash
+# Usage:
+# ./copy_ssh_keys.sh <host_ip> <host_username> <ssh_keys_filepath>(Optional)
+# useradd -m -G wheel -s /bin/ksh ctrlcat, xtrlXat
+HOST_IP=$1
+HOST_USERNAME=$2
+SSH_KEYS_FILEPATH=$3
 
+if [[ -z "$HOST_IP" ]]; then
+    echo "Error: Missing host IP address!"
+    exit 1
+fi
+
+if [[ -z "$HOST_USERNAME" ]]; then
+    echo "Error: Missing host username!"
+    exit 1
+fi
 
 if [[ ! -f "$SSH_KEYS_FILEPATH" ]]; then
-    echo "Error: File '$SSH_KEYS_FILEPATH' not found!"
-    exit 1
+    # Find public key file (ending with .pub) in ~/.ssh directory
+    PUBLIC_KEY_FILEPATH=$(find ~/.ssh -type f -name "*.pub" | head -n 1)
+    if [[ -z "$PUBLIC_KEY_FILEPATH" ]]; then
+        echo "Error: No public key file found in ~/.ssh directory!"
+        exit 1
+    fi
+    echo "Using public key file: $PUBLIC_KEY_FILEPATH"
+    ssh-copy-id -i $PUBLIC_KEY_FILEPATH $HOST_USERNAME@$HOST_IP
+    exit 0
 fi
 
 # Copy each public key to the remote server
@@ -23,4 +44,4 @@ while IFS= read -r key || [[ -n $key ]]; do
     else
         echo "Skipping empty line."
     fi
-done < "$SSH_KEYS_FILEPATH"
+done <"$SSH_KEYS_FILEPATH"
