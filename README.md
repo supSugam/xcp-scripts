@@ -8,7 +8,7 @@
 
 ## Pre-Installation Steps:
 
-1. Edit `config.env` file, and set the variables accordingly.
+1. Create `config.env` file, and set the variables accordingly (see `config.env.example`).
 
 2. Use `shell/copy_ssh_keys.sh` script, it will copy your SSH keys to the XCP-ng host.
 

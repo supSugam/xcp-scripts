@@ -4,7 +4,6 @@ source load_config.sh
 
 # Usage:
 # ./copy_ssh_keys.sh <host_ip> <host_username> <ssh_keys_filepath>(Optional)
-# useradd -m -G wheel -s /bin/ksh ctrlcat, xtrlXat
 HOST_IP=$1
 HOST_USERNAME=$2
 SSH_KEYS_FILEPATH=$3

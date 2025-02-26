@@ -66,4 +66,3 @@ fi
 ssh $SSH_OPTS $HOST_USERNAME@$HOST_IP "xe sr-scan uuid=$ISO_SR_UUID"
 
 #  bsd, xtrlxat, post-command: mail
-# continue with ssh tomorrow
