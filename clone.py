@@ -76,27 +76,37 @@ def main():
         session.xenapi.VM.set_other_config(vm, {"base_template_name": template["name"]})
         # Start the VM
         session.xenapi.VM.start(vm, False, True)
-        print("VM created successfully")
+        print("VM Cloned Successfully")
 
-        # Wait until it's up
-        while session.xenapi.VM.get_power_state(vm) != "Running":
-            print("Waiting for VM to start...")
-            time.sleep(2)
-
-        # Get the guest metrics reference
+        # Grab IP address (Need a better way to wait for the VM to boot up completely first)
         ip_address = None
-        guest_metrics_ref = session.xenapi.VM.get_guest_metrics(vm)
-        if guest_metrics_ref and guest_metrics_ref != "OpaqueRef:NULL":
-            networks = session.xenapi.VM_guest_metrics.get_networks(guest_metrics_ref)
-            ip_address = networks.get("0/ip")
-            print(f"VM IP Address: {ip_address}, ssh into this IP to access the VM")
+        start = time.time()
+        while ip_address is None and time.time() - start < 60 * 2:
+            try:
+                guest_metrics_ref = session.xenapi.VM.get_guest_metrics(vm)
+                if guest_metrics_ref and not guest_metrics_ref.endswith("NULL"):
+                    networks = session.xenapi.VM_guest_metrics.get_networks(
+                        guest_metrics_ref
+                    )
+                    ip_address = networks.get("0/ip")
+                    if ip_address:
+                        print(
+                            f"VM IP Address: {ip_address}, ssh into this IP to access the VM"
+                        )
+                        break
+                else:
+                    print(
+                        "No IP address found, Make sure xe-guest-utilities is installed"
+                    )
+            except XenAPI.Failure as e:
+                print(f"Error retrieving IP address: {e}")
+                time.sleep(5)
         else:
-            print("No IP address found, Make sure xe-guest-utilities is installed")
+            print("Failed to retrieve IP address within the timeout period")
 
     except Exception as e:
         raise e
     finally:
-        # session.xenapi.VM.destroy(vm)
         session.logout()
 
 
