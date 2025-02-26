@@ -79,7 +79,7 @@
     - Password: ubuntu
     - Confirm Password: ubuntu
 
-  - 4.1.3 Installation will complete, and the VM will reboot, after it reboots, execute following commands:
+  - 4.1.3 (Optional) Installation will complete, and the VM will reboot, after it reboots, execute following commands:
 
     ```bash
     sudo apt update
@@ -105,13 +105,27 @@
     - root password: bsd
 
   - 4.2.3 De-select the optional sets, and continue with the installation.
-  - 4.2.3 Enter `y` when asked to skip the verification of sets.
+  - 4.2.3 Enter `y` when asked to skip the SHA256.sig verification.
+  - 4.2.4 (Optional) Install `xe-guest-utilities`, [this forum post](https://xcp-ng.org/forum/post/23527) has the steps to install `xe-guest-utilities` on OpenBSD.
+    ```bash
+    pkg_add xe-guest-utilities
+    rcctl enable xe-daemon
+    rcctl set xe-daemon flags -n
+    rcctl start xe-daemon
+    ```
 
   ### Note: If you didn't create a user during the installation, default login is `root` with password `bsd` (if you allowed root login).
 
 - 4.3 [Alpine Linux]
 
-  - 4.3.1 Soon!
+  - 4.3.1 `setup-alpine`, all defaults, make sure you select a disk and `sys`, create a user.
+  - 4.3.2 (Optional) Install `xe-guest-utilities`.
+    ```bash
+    # Enable the community repository in /etc/apk/repositories (uncomment the line using `vi`)
+    apk add xe-guest-utilities
+    rc-update add xe-guest-utilities
+    rc-service xe-guest-utilities start
+    ```
 
 6. Reboot the VM, After the VM reboots, get the IP address of the VM, and use `shell/copy_ssh_keys.sh` script to copy your SSH keys to the VM.
 
@@ -128,4 +142,6 @@
 
 ### References:
 
-- [XCP-ng Documentation](https://docs.xcp-ng.org/guides/create-use-custom-xcpng-ubuntu-templates/#from-an-iso-file)
+- [Create and use custom XCP-ng Ubuntu templates](https://docs.xcp-ng.org/guides/create-use-custom-xcpng-ubuntu-templates/#from-an-iso-file)
+- [Setting up SSH Server on AlpineLinux](https://wiki.alpinelinux.org/wiki/Setting_up_a_SSH_server)
+- [Setting up a new user on AlpineLinux](https://wiki.alpinelinux.org/wiki/Setting_up_a_new_user)

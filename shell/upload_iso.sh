@@ -4,8 +4,6 @@ source load_config.sh
 echo "Script executed from: ${PWD}"
 echo "------------------------------"
 
-source copy_ssh_keys.sh
-# https://cdn.openbsd.org/pub/OpenBSD/7.6/amd64/install76.img
 # Default path (optional)
 # Usage: ./upload_iso.sh "/path/to/iso" "name.iso"
 ISO_FILEPATH=$1

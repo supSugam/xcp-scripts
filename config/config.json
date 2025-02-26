@@ -1,0 +1,19 @@
+{
+  "templates": {
+    "ubuntu": {
+      "name": "Ubuntu 24.04.1 Custom",
+      "storage_name": "Local storage",
+      "network_name": "Pool-wide network associated with eth0"
+    },
+    "alpine": {
+      "name": "Alpine Linux",
+      "storage_name": "Local storage",
+      "network_name": "Pool-wide network associated with eth0"
+    },
+    "openbsd": {
+      "name": "OpenBSD",
+      "storage_name": "Local storage",
+      "network_name": "Pool-wide network associated with eth0"
+    }
+  }
+}
